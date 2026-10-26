@@ -183,11 +183,18 @@ html, body {
 .m-img-del {
   position: absolute; top: 4px; right: 4px;
   width: 22px; height: 22px; border-radius: 50%;
-  background: var(--danger); color: #fff; border: none; cursor: pointer;
+  background: rgba(0, 0, 0, 0.6); color: #ffffff;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; opacity: 0; transition: opacity .15s;
+  font-size: 13px; line-height: 1;
+  opacity: 0; z-index: 10;
+  transition: opacity .15s, background-color .15s, transform .15s;
 }
-.m-img-card:hover .m-img-del { opacity: 1; }
+.m-img-card:hover .m-img-del,
+.m-img-del:focus-visible { opacity: 1; }
+.m-img-del:hover { background: #ef4444; transform: scale(1.1); }
 
 .m-dropzone {
   margin-top: 16px; padding: 18px; border: 2px dashed var(--border);

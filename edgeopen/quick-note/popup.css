@@ -222,15 +222,22 @@ html, body {
 }
 .thumb-wrap { position: relative; }
 .thumb-del {
-  position: absolute; top: -4px; right: -4px;
-  width: 18px; height: 18px; border-radius: 50%;
-  background: var(--danger); color: #fff; border: none; cursor: pointer;
+  position: absolute; top: 4px; right: 4px;    /* 内缩，不再贴边外溢 */
+  width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6); color: #ffffff;   /* 半透明深底 + 纯白 ×，任何图片上都清晰 */
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; line-height: 1; opacity: 0;
-  transition: opacity .15s, transform .15s;
+  font-size: 12px; line-height: 1;
+  opacity: 0; z-index: 10;                       /* 默认隐藏，防遮挡 */
+  transition: opacity .15s, background-color .15s, transform .15s;
 }
-.thumb-wrap:hover .thumb-del { opacity: 1; }
-.thumb-del:hover { transform: scale(1.1); }
+/* 列表卡片和编辑器两种容器都要触发显示 */
+.thumb-wrap:hover .thumb-del,
+.editor-thumb-wrap:hover .thumb-del,
+.thumb-del:focus-visible { opacity: 1; }
+.thumb-del:hover { background: #ef4444; transform: scale(1.1); }   /* 悬浮变红，危险操作提示 */
 
 .card-footer {
   display: flex; justify-content: space-between; align-items: center;
