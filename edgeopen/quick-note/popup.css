@@ -211,7 +211,9 @@ html, body {
 .thumb {
   width: 56px; height: 56px; border-radius: 6px; object-fit: cover;
   background: var(--surface-2); flex-shrink: 0;
+  opacity: 0; transition: opacity .2s ease;   /* 加载完成后淡入 */
 }
+.thumb.loaded { opacity: 1; }
 .thumb-more {
   width: 56px; height: 56px; border-radius: 6px;
   background: var(--surface-2); color: var(--text-muted);

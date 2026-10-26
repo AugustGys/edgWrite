@@ -49,6 +49,15 @@ let autoSaveTimer = null;
 let isDragging = false;           // 当前是否在拖拽中（全局标记）
 let isEditing = false;            // editor 是否展开（新建或编辑已有便签）
 
+// ======== 图片加载失败占位图 ========
+// 内联 SVG data URL：渲染失败 / IndexedDB 无记录时顶替，避免灰色方块无任何反馈
+const ERROR_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56">' +
+  '<rect width="56" height="56" rx="6" fill="#e5e7eb"/>' +
+  '<path d="M10 46 L46 10 M10 10 L46 46" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/>' +
+  '</svg>'
+);
+
 // ======== Toast ========
 function showToast(msg, duration = 1800) {
   els.toast.textContent = msg;
@@ -273,12 +282,25 @@ function formatTime(ts) {
 }
 
 async function loadThumbIntoImg(imgEl, imgId) {
+  // onerror 兜底：任何渲染失败都换成占位图，并打印日志
+  imgEl.addEventListener('error', () => {
+    console.warn('[随心记] 图片渲染失败, imgId =', imgId);
+    if (imgEl.src !== ERROR_PLACEHOLDER) imgEl.src = ERROR_PLACEHOLDER;
+  });
+  imgEl.addEventListener('load', () => imgEl.classList.add('loaded'), { once: true });
   try {
-    const thumbBlob = await ImageStore.getThumb(imgId);
-    if (!thumbBlob) return;
-    imgEl.src = objUrl(thumbBlob);
+    // 优先缩略图；缩略图缺失时降级为原图
+    let blob = await ImageStore.getThumb(imgId);
+    if (!blob) blob = await ImageStore.getImage(imgId);
+    if (!blob) {
+      console.warn('[随心记] IndexedDB 无此图片记录, imgId =', imgId);
+      imgEl.src = ERROR_PLACEHOLDER;
+      return;
+    }
+    imgEl.src = objUrl(blob);
   } catch (err) {
     console.warn('[随心记] 缩略图加载失败:', err);
+    imgEl.src = ERROR_PLACEHOLDER;
   }
 }
 
@@ -402,8 +424,10 @@ async function renderImagePreview() {
     } else if (img.thumbUrl) {
       const im = document.createElement('img');
       im.className = 'thumb';
-      im.src = img.thumbUrl;
       im.alt = '';
+      im.addEventListener('load', () => im.classList.add('loaded'), { once: true });
+      im.addEventListener('error', () => { if (im.src !== ERROR_PLACEHOLDER) im.src = ERROR_PLACEHOLDER; });
+      im.src = img.thumbUrl;
       wrap.appendChild(im);
     } else if (img.id) {
       const im = document.createElement('img');
@@ -425,14 +449,22 @@ async function renderImagePreview() {
 }
 
 async function loadEditorThumb(imgItem, imgEl) {
+  imgEl.addEventListener('error', () => {
+    if (imgEl.src !== ERROR_PLACEHOLDER) imgEl.src = ERROR_PLACEHOLDER;
+  });
+  imgEl.addEventListener('load', () => imgEl.classList.add('loaded'), { once: true });
   try {
-    const thumbBlob = await ImageStore.getThumb(imgItem.id);
-    if (thumbBlob) {
-      imgItem.thumbUrl = editorObjUrl(thumbBlob);
+    let blob = await ImageStore.getThumb(imgItem.id);
+    if (!blob) blob = await ImageStore.getImage(imgItem.id);
+    if (blob) {
+      imgItem.thumbUrl = editorObjUrl(blob);
       imgEl.src = imgItem.thumbUrl;
+    } else {
+      imgEl.src = ERROR_PLACEHOLDER;
     }
   } catch (err) {
-    console.warn(err);
+    console.warn('[随心记] 编辑器缩略图加载失败:', err);
+    imgEl.src = ERROR_PLACEHOLDER;
   }
 }
 

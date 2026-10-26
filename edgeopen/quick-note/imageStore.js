@@ -2,6 +2,9 @@
 // 职责：管理图片二进制（原图 + 缩略图），Promise 化所有操作
 // 数据库：quicknote-db v1
 // objectStore：images, keyPath = "id"
+//
+// 关键：IDB 请求是异步的 —— 读操作必须在 req.onsuccess 回调里取 req.result；
+// 写操作以 tx.oncomplete 作为完成信号。严禁同步读取 req.result（永远是 undefined）。
 
 const ImageStore = (() => {
   const DB_NAME = 'quicknote-db';
@@ -30,23 +33,40 @@ const ImageStore = (() => {
     return _dbPromise;
   }
 
-  /** 包装一个事务，统一错误处理 */
-  async function withStore(mode, fn) {
+  /**
+   * 写事务包装：txFn(store) 内发起任意数量写/删请求，
+   * 整个事务提交完成（tx.oncomplete）后才 resolve，保证落库。
+   */
+  async function withTx(mode, txFn) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, mode);
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error || new Error('事务中止'));
-      const store = tx.objectStore(STORE);
-      const result = fn(store);
-      tx.oncomplete = () => resolve(result);
+      tx.oncomplete = () => resolve();
+      txFn(tx.objectStore(STORE));
+    });
+  }
+
+  /**
+   * 单个读请求包装：在 req.onsuccess 里取 req.result，
+   * 这才是 IndexedDB 读操作的唯一正确时机。
+   */
+  async function readOne(requestFn) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      tx.onerror = () => reject(tx.error);
+      const req = requestFn(tx.objectStore(STORE));
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
     });
   }
 
   /** 写入一张图片 */
-  async function putImage(record) {
-    if (!record || !record.id) throw new Error('缺少 id');
-    return withStore('readwrite', (store) => {
+  function putImage(record) {
+    if (!record || !record.id) return Promise.reject(new Error('缺少 id'));
+    return withTx('readwrite', (store) => {
       store.put({
         id: record.id,
         blob: record.blob,
@@ -58,6 +78,12 @@ const ImageStore = (() => {
         createdAt: record.createdAt || Date.now()
       });
     });
+  }
+
+  /** 获取完整记录 */
+  function getRecord(id) {
+    if (!id) return Promise.resolve(null);
+    return readOne((store) => store.get(id)).then((rec) => rec || null);
   }
 
   /** 获取原图 Blob */
@@ -72,69 +98,47 @@ const ImageStore = (() => {
     return rec ? rec.thumbBlob : null;
   }
 
-  /** 获取完整记录 */
-  async function getRecord(id) {
-    if (!id) return null;
-    return withStore('readonly', (store) => {
-      const req = store.get(id);
-      req.onsuccess = () => { /* 通过 tx.oncomplete 返回 */ };
-      return req.result || null;
-    });
-  }
-
   /** 删除一张图片 */
-  async function deleteImage(id) {
-    if (!id) return;
-    return withStore('readwrite', (store) => {
-      store.delete(id);
-    });
+  function deleteImage(id) {
+    if (!id) return Promise.resolve();
+    return withTx('readwrite', (store) => { store.delete(id); });
   }
 
   /** 批量删除（按 id 列表） */
-  async function deleteImagesByIds(ids) {
-    if (!ids || !ids.length) return;
-    return withStore('readwrite', (store) => {
-      ids.forEach(id => store.delete(id));
+  function deleteImagesByIds(ids) {
+    if (!ids || !ids.length) return Promise.resolve();
+    return withTx('readwrite', (store) => {
+      ids.forEach((id) => store.delete(id));
     });
   }
 
   /** 按 note 删除关联图片（传入 note.images 数组） */
-  async function deleteImagesByNote(noteImages) {
-    if (!noteImages || !noteImages.length) return;
-    const ids = noteImages.map(img => img.id).filter(Boolean);
+  function deleteImagesByNote(noteImages) {
+    if (!noteImages || !noteImages.length) return Promise.resolve();
+    const ids = noteImages.map((img) => img.id).filter(Boolean);
     return deleteImagesByIds(ids);
   }
 
   /** 获取所有图片 id */
-  async function getAllImageIds() {
-    return withStore('readonly', (store) => {
-      const req = store.getAllKeys();
-      return req.result || [];
-    });
+  function getAllImageIds() {
+    return readOne((store) => store.getAllKeys()).then((r) => r || []);
+  }
+
+  /** 获取所有记录（遍历用） */
+  function getAllRecords() {
+    return readOne((store) => store.getAll()).then((r) => r || []);
   }
 
   /** 统计占用体积（字节） */
   async function getTotalSize() {
-    return withStore('readonly', (store) => {
-      const req = store.getAll();
-      if (!req.result) return 0;
-      return req.result.reduce((acc, rec) => acc + (rec.size || 0) + (rec.thumbBlob ? rec.thumbBlob.size : 0), 0);
-    });
-  }
-
-  /** 获取所有记录（遍历用） */
-  async function getAllRecords() {
-    return withStore('readonly', (store) => {
-      const req = store.getAll();
-      return req.result || [];
-    });
+    const all = await getAllRecords();
+    return all.reduce((acc, rec) =>
+      acc + (rec.size || 0) + (rec.thumbBlob ? rec.thumbBlob.size : 0), 0);
   }
 
   /** 清空整个库 */
-  async function clearAll() {
-    return withStore('readwrite', (store) => {
-      store.clear();
-    });
+  function clearAll() {
+    return withTx('readwrite', (store) => { store.clear(); });
   }
 
   return {

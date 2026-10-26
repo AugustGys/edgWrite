@@ -48,6 +48,14 @@ let allUrls = new Set();
 let saveTimer = null;
 let autoSaveInterval = null;
 
+// ======== 图片加载失败占位图（内联 SVG） ========
+const ERROR_PLACEHOLDER_INLINE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">' +
+  '<rect width="80" height="80" rx="8" fill="#e5e7eb"/>' +
+  '<path d="M16 64 L64 16 M16 16 L64 64" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>' +
+  '</svg>'
+);
+
 // ======== Toast ========
 function showToast(msg, duration = 1800) {
   els.toast.textContent = msg;
@@ -234,7 +242,6 @@ async function renderDetailImages() {
     } else {
       const im = document.createElement('img');
       im.alt = '';
-      im.src = '';
       im.dataset.imgId = img.id;
       im.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -257,12 +264,23 @@ async function renderDetailImages() {
 }
 
 async function loadDetailThumb(imgItem, imgEl) {
+  imgEl.addEventListener('error', () => {
+    console.warn('[随心记] 管理页图片渲染失败, imgId =', imgItem.id);
+    if (imgEl.src !== ERROR_PLACEHOLDER_INLINE) imgEl.src = ERROR_PLACEHOLDER_INLINE;
+  });
   try {
-    const thumbBlob = await ImageStore.getThumb(imgItem.id);
-    if (thumbBlob) {
-      imgEl.src = editorObjUrl(thumbBlob);
+    // 优先缩略图；缺失时降级为原图
+    let blob = await ImageStore.getThumb(imgItem.id);
+    if (!blob) blob = await ImageStore.getImage(imgItem.id);
+    if (blob) {
+      imgEl.src = editorObjUrl(blob);
+    } else {
+      imgEl.src = ERROR_PLACEHOLDER_INLINE;
     }
-  } catch (e) { console.warn(e); }
+  } catch (e) {
+    console.warn('[随心记] 管理页缩略图加载失败:', e);
+    imgEl.src = ERROR_PLACEHOLDER_INLINE;
+  }
 }
 
 async function removeDetailImage(imgItem) {
