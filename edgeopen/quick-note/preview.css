@@ -1,0 +1,62 @@
+/* preview.css */
+
+:root {
+  --bg: #0A0B12;
+  --text: #E6E7EC;
+  --accent: #4F7CFF;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #1a1b22; }
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+.viewer {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab; user-select: none;
+}
+.viewer.panning { cursor: grabbing; }
+
+.viewer img {
+  max-width: 100%; max-height: 100%;
+  transform-origin: center center;
+  transition: transform .08s linear;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.toolbar {
+  position: fixed; top: 16px; right: 16px;
+  display: flex; gap: 6px; align-items: center;
+  background: rgba(30,32,42,.85); backdrop-filter: blur(8px);
+  padding: 6px 10px; border-radius: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  z-index: 20;
+}
+.toolbar button {
+  width: 32px; height: 32px;
+  background: transparent; border: none; color: var(--text);
+  cursor: pointer; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.toolbar button:hover { background: rgba(255,255,255,.1); }
+.zoom-label {
+  min-width: 48px; text-align: center;
+  font-size: 12px; color: var(--text);
+}
+
+.loading, .error {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(30,32,42,.9); padding: 10px 18px;
+  border-radius: 20px; font-size: 13px;
+}
+.error { color: #F87171; }

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>随心记</title>
+</head>
+<body>
+  <!-- 顶部标题栏 -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M4 4h12a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4zm2 0v14h12a2 2 0 0 0 2-2V8a4 4 0 0 0-4-4H6zm3 5h8v2H9V9zm0 4h8v2H9v-2z"/>
+      </svg>
+      <span>随心记</span>
+    </div>
+    <button class="btn-icon" id="btn-manager" title="全屏管理">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path fill="currentColor" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- 搜索栏 -->
+  <div class="search-bar">
+    <svg viewBox="0 0 24 24" width="16" height="16" class="search-icon" aria-hidden="true">
+      <path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>
+    </svg>
+    <input type="text" id="search-input" placeholder="搜索便签..." maxlength="200">
+    <button class="btn-icon" id="btn-clear-search" title="清除搜索" hidden>
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- 列表区 -->
+  <main id="notes-list" class="notes-list">
+    <!-- 动态生成 -->
+  </main>
+
+  <!-- 空状态 -->
+  <div id="empty-state" class="empty-state" hidden>
+    <svg class="empty-svg" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="25" y="15" width="70" height="90" rx="6"/>
+        <path d="M40 35h40M40 50h40M40 65h30"/>
+        <circle cx="95" cy="95" r="15" fill="currentColor" stroke="none" opacity=".15"/>
+        <path d="M95 88v14M88 95h14"/>
+      </g>
+    </svg>
+    <div class="empty-title">还没有便签</div>
+    <div class="empty-sub">记下第一个想法吧</div>
+    <button class="btn-primary" id="btn-new-empty">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+      新建便签
+    </button>
+  </div>
+
+  <!-- 新建便签编辑区 -->
+  <section id="editor" class="editor" hidden>
+    <div class="editor-header">
+      <input type="text" id="note-title" class="note-title" placeholder="标题（可选）" maxlength="80">
+      <button class="btn-icon" id="btn-cancel" title="取消">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+    </div>
+
+    <textarea id="note-content" class="note-content" placeholder="在这里输入内容，Ctrl+V 粘贴图片，或把图片拖进来..." rows="3"></textarea>
+
+    <!-- 颜色 -->
+    <div class="color-row" id="color-row">
+      <button class="color-dot" data-color="yellow" style="background:#FFE58F"></button>
+      <button class="color-dot" data-color="green"  style="background:#B7EB8F"></button>
+      <button class="color-dot" data-color="blue"   style="background:#91CAFF"></button>
+      <button class="color-dot" data-color="pink"   style="background:#FFA3C0"></button>
+      <button class="color-dot" data-color="purple" style="background:#D3ADF7"></button>
+    </div>
+
+    <!-- 图片预览 -->
+    <div id="image-preview-row" class="image-preview-row" hidden></div>
+
+    <!-- 拖拽提示遮罩 -->
+    <div id="drop-overlay" class="drop-overlay" hidden>
+      <div class="drop-hint">
+        <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
+          <path fill="currentColor" d="M24 4L34 18h-6v14H20V18h-6z"/>
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 38h32"/>
+        </svg>
+        <div>松开即可添加图片</div>
+      </div>
+    </div>
+
+    <!-- 底部工具条 -->
+    <footer class="editor-footer">
+      <button class="btn-secondary" id="btn-add-image" title="添加图片">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path fill="currentColor" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/>
+        </svg>
+        添加图片
+      </button>
+      <input type="file" id="file-input" accept="image/*" multiple hidden>
+      <span class="save-status" id="save-status">已保存</span>
+      <button class="btn-primary" id="btn-save">保存</button>
+    </footer>
+  </section>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" hidden>
+    <button class="lb-close" id="lb-close" aria-label="关闭">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </button>
+    <button class="lb-nav lb-prev" id="lb-prev" aria-label="上一张">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z"/></svg>
+    </button>
+    <button class="lb-nav lb-next" id="lb-next" aria-label="下一张">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+    </button>
+    <img id="lb-img" alt="">
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="imageUtils.js"></script>
+  <script src="imageStore.js"></script>
+  <script src="storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

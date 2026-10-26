@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="manager.css">
+  <title>随心记 · 管理</title>
+</head>
+<body>
+  <header class="m-topbar">
+    <div class="m-brand">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path fill="currentColor" d="M4 4h12a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4zm2 0v14h12a2 2 0 0 0 2-2V8a4 4 0 0 0-4-4H6z"/>
+      </svg>
+      <h1>随心记</h1>
+      <span class="m-sub">完整管理</span>
+    </div>
+    <div class="m-actions">
+      <button class="btn" id="btn-new">+ 新建便签</button>
+      <button class="btn btn-secondary" id="btn-export-text">仅导出文字</button>
+      <button class="btn btn-secondary" id="btn-export">导出 JSON</button>
+      <label class="btn btn-secondary file-label">
+        导入 JSON
+        <input type="file" id="file-import" accept="application/json,.json" hidden>
+      </label>
+    </div>
+  </header>
+
+  <div class="m-layout">
+    <!-- 左栏 -->
+    <aside class="m-left">
+      <div class="m-left-search">
+        <input type="text" id="search-input" placeholder="搜索便签...">
+        <button class="btn-icon" id="btn-clear-search" hidden>×</button>
+      </div>
+      <div class="m-left-tools">
+        <label class="chk"><input type="checkbox" id="chk-all"> 全选</label>
+        <button class="btn-danger-sm" id="btn-batch-del" disabled>批量删除</button>
+        <span class="m-stat" id="m-stat">图片占用：—</span>
+      </div>
+      <ul class="m-list" id="m-list"></ul>
+      <div class="m-empty" id="m-empty" hidden>
+        <div>还没有便签，点右上角 <b>+ 新建便签</b></div>
+      </div>
+    </aside>
+
+    <!-- 右栏 -->
+    <main class="m-right">
+      <div class="m-detail" id="m-detail" hidden>
+        <div class="m-detail-header">
+          <input type="text" id="d-title" placeholder="标题（可选）" maxlength="80">
+          <div class="m-color-row" id="d-color-row">
+            <button class="color-dot" data-color="yellow"  style="background:#FFE58F"></button>
+            <button class="color-dot" data-color="green"   style="background:#B7EB8F"></button>
+            <button class="color-dot" data-color="blue"    style="background:#91CAFF"></button>
+            <button class="color-dot" data-color="pink"    style="background:#FFA3C0"></button>
+            <button class="color-dot" data-color="purple"  style="background:#D3ADF7"></button>
+          </div>
+        </div>
+        <textarea id="d-content" placeholder="在这里输入..." rows="10"></textarea>
+
+        <div class="m-images-title">图片（<span id="d-img-count">0</span>）</div>
+        <div class="m-images" id="d-images"></div>
+
+        <div class="m-dropzone" id="d-dropzone">
+          <div class="dz-hint">
+            <svg viewBox="0 0 48 48" width="32" height="32" aria-hidden="true">
+              <path fill="currentColor" d="M24 4L34 18h-6v14H20V18h-6z"/>
+              <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 38h32"/>
+            </svg>
+            <div>拖拽图片到这里，或按「粘贴」</div>
+          </div>
+          <div class="dz-actions">
+            <button class="btn btn-secondary" id="d-btn-add">添加图片</button>
+            <input type="file" id="d-file-input" accept="image/*" multiple hidden>
+          </div>
+        </div>
+
+        <footer class="m-detail-footer">
+          <span class="save-status" id="d-save-status">已保存</span>
+          <button class="btn" id="d-btn-save">保存</button>
+          <button class="btn btn-danger" id="d-btn-del">删除</button>
+        </footer>
+      </div>
+      <div class="m-no-selection" id="m-no-selection">
+        <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+          <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="25" y="15" width="70" height="90" rx="6"/>
+            <path d="M40 35h40M40 50h40M40 65h30"/>
+          </g>
+        </svg>
+        <div>从左侧选择一条便签，或新建一条</div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="imageUtils.js"></script>
+  <script src="imageStore.js"></script>
+  <script src="storage.js"></script>
+  <script src="manager.js"></script>
+</body>
+</html>

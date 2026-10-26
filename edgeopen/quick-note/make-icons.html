@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>随心记 · 图标生成器</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; background: #F7F8FC; color: #1F2430; }
+    h1 { margin: 0 0 6px; }
+    p { color: #6B7280; }
+    .row { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+    .card { background: #fff; padding: 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); text-align: center; }
+    canvas { display: block; background: #fff; border-radius: 8px; }
+    button { margin-top: 20px; padding: 10px 22px; font-size: 14px; border: none; background: #4F7CFF; color: #fff; border-radius: 8px; cursor: pointer; }
+    button:hover { background: #3B6BF0; }
+    .dl-list { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .dl-list a { padding: 6px 14px; background: #EEF2FF; color: #4F7CFF; border-radius: 6px; text-decoration: none; font-size: 13px; }
+    .dl-list a:hover { background: #4F7CFF; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>随心记 · 图标生成器</h1>
+  <p>点下方按钮生成 16/32/48/128 四档图标，右键保存到 quick-note/icons/ 或点链接下载。</p>
+  <button id="gen">生成图标</button>
+  <div class="row" id="row"></div>
+  <div class="dl-list" id="dl" hidden></div>
+  <script>
+    function drawIcon(size) {
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const ctx = c.getContext('2d');
+
+      // 背景圆角方块
+      const pad = size * 0.08;
+      const radius = size * 0.22;
+      const grad = ctx.createLinearGradient(0, 0, size, size);
+      grad.addColorStop(0, '#4F7CFF');
+      grad.addColorStop(1, '#6B8EFF');
+      ctx.fillStyle = grad;
+      roundRect(ctx, pad, pad, size - pad * 2, size - pad * 2, radius);
+      ctx.fill();
+
+      // 笔记本图形
+      const cx = size / 2, cy = size / 2;
+      const w = size * 0.54, h = size * 0.6;
+      const x = cx - w / 2, y = cy - h / 2 + size * 0.02;
+
+      ctx.fillStyle = '#FFFFFF';
+      roundRect(ctx, x, y, w, h, size * 0.06);
+      ctx.fill();
+
+      // 顶部蓝色标签
+      ctx.fillStyle = '#4F7CFF';
+      roundRect(ctx, x, y, w, h * 0.24, size * 0.06);
+      ctx.fill();
+      // 补圆角上方
+      ctx.fillStyle = '#4F7CFF';
+      ctx.fillRect(x, y + h * 0.18, w, h * 0.08);
+
+      // 横线
+      ctx.strokeStyle = '#C5CCDC';
+      ctx.lineWidth = Math.max(1, size * 0.015);
+      const lines = 3;
+      for (let i = 1; i <= lines; i++) {
+        const ly = y + h * (0.38 + i * 0.14);
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.15, ly);
+        ctx.lineTo(x + w * 0.85, ly);
+        ctx.stroke();
+      }
+
+      // 加号角标
+      const badgeR = size * 0.11;
+      const bx = size - pad - badgeR, by = pad + badgeR;
+      ctx.fillStyle = '#10B981';
+      ctx.beginPath();
+      ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(bx - size * 0.04, by - size * 0.008, size * 0.08, size * 0.016);
+      ctx.fillRect(bx - size * 0.008, by - size * 0.04, size * 0.016, size * 0.08);
+
+      return c;
+    }
+    function roundRect(ctx, x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+    function download(canvas, name) {
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = name;
+      a.textContent = name;
+      return a;
+    }
+
+    document.getElementById('gen').onclick = () => {
+      const row = document.getElementById('row');
+      const dl = document.getElementById('dl');
+      row.innerHTML = '';
+      dl.innerHTML = '';
+      dl.hidden = false;
+      [16, 32, 48, 128].forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const c = drawIcon(s);
+        c.style.width = s * 2 + 'px';
+        c.style.height = s * 2 + 'px';
+        card.appendChild(c);
+        const label = document.createElement('div');
+        label.style.marginTop = '8px';
+        label.style.color = '#6B7280';
+        label.textContent = `icon${s}.png`;
+        card.appendChild(label);
+        row.appendChild(card);
+
+        const a = download(c, `icon${s}.png`);
+        dl.appendChild(a);
+      });
+    };
+  </script>
+</body>
+</html>
