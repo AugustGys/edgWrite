@@ -1,5 +1,6 @@
 // popup.js - 便签主交互
 // 职责：渲染列表、新建/编辑/删除便签、图片三通道输入、lightbox、自动保存
+// 设计：常驻 trigger 卡片 + 编辑器绝对定位覆盖层，两者互斥但不销毁状态
 
 'use strict';
 
@@ -36,7 +37,7 @@ const els = {
 
 // ======== 状态 ========
 let notes = [];
-let currentEdit = null;           // 编辑中的便签 id（null = 新建）
+let currentEdit = null;           // 编辑中的便签 id（null = 新建模式）
 let currentColor = 'yellow';
 let currentImages = [];           // [{id, thumbUrl, w, h, size, type, status}]
 let currentImageIdSet = new Set();
@@ -46,6 +47,7 @@ let allUrls = new Set();          // 所有 createObjectURL 产生的 URL，统�
 let saveDebounceTimer = null;
 let autoSaveTimer = null;
 let isDragging = false;           // 当前是否在拖拽中（全局标记）
+let isEditing = false;            // editor 是否展开（新建或编辑已有便签）
 
 // ======== Toast ========
 function showToast(msg, duration = 1800) {
@@ -73,7 +75,7 @@ function setSaveStatus(kind, text) {
   els.saveStatus.textContent = text;
 }
 
-// ======== 清理拖拽态（关键：多处调用防止卡死） ========
+// ======== 清理拖拽态 ========
 function clearDragState() {
   isDragging = false;
   els.editor.classList.remove('dragover');
@@ -95,6 +97,7 @@ async function loadList(keyword = '') {
 }
 
 // ======== 渲染列表 ========
+// 关键：notes.length > 0 时第一个元素是常驻 trigger 卡片
 function renderList() {
   const oldUrls = new Set(allUrls);
   els.list.innerHTML = '';
@@ -108,15 +111,43 @@ function renderList() {
   els.list.hidden = false;
 
   const frag = document.createDocumentFragment();
+
+  // 常驻「+ 新建便签」触发卡片
+  const trigger = buildTriggerCard();
+  frag.appendChild(trigger);
+
+  // 便签卡片
   for (const note of notes) {
     frag.appendChild(buildCard(note));
   }
+
   els.list.appendChild(frag);
 
-  // 释放旧 URL（新加载的会重新 add 到 allUrls）
   oldUrls.forEach(u => {
     if (!allUrls.has(u)) { try { URL.revokeObjectURL(u); } catch (e) {} }
   });
+}
+
+// 构建常驻触发卡片（虚线框 + + 图标 + 文字）
+function buildTriggerCard() {
+  const el = document.createElement('div');
+  el.className = 'new-note-trigger';
+  el.title = '新建便签';
+  el.tabIndex = 0;
+
+  el.innerHTML = `
+    <svg class="plus-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/>
+    </svg>
+    <span class="trigger-label">新建便签</span>
+  `;
+
+  el.addEventListener('click', () => openEditor(null));
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor(null); }
+  });
+
+  return el;
 }
 
 function buildCard(note) {
@@ -280,16 +311,18 @@ async function confirmDelete(note) {
   }
 }
 
-// ======== 打开编辑器 ========
+// ======== 打开编辑器（新建或编辑） ========
+// note = null  → 新建模式
+// note = object → 编辑已有便签
 function openEditor(note) {
   clearDragState();
 
+  isEditing = true;
   els.editor.hidden = false;
-  els.list.hidden = true;
-  els.empty.hidden = true;
-  els.search.value = '';
+  els.search.value = '';  // 清空搜索，避免过滤影响
 
   if (note) {
+    // 编辑模式
     currentEdit = note.id;
     els.title.value = note.title || '';
     els.content.value = note.content || '';
@@ -304,6 +337,7 @@ function openEditor(note) {
       }
     }
   } else {
+    // 新建模式
     currentEdit = null;
     els.title.value = '';
     els.content.value = '';
@@ -319,15 +353,18 @@ function openEditor(note) {
   startAutoSave();
 }
 
+// ======== 关闭编辑器 ========
+// 覆盖层消失，列表保持原样（trigger 卡片仍在原位）
 function closeEditor() {
   clearDragState();
   stopAutoSave();
+  isEditing = false;
   els.editor.hidden = true;
-  els.list.hidden = false;
   revokeEditorUrls();
   currentEdit = null;
   currentImages = [];
   currentImageIdSet.clear();
+  // 刷新列表（把可能因为编辑而变化的 pinned / updatedAt 体现出来）
   loadList(els.search.value);
 }
 
@@ -444,6 +481,7 @@ async function doSave() {
     if (currentEdit) {
       await Storage.updateNote(currentEdit, patch);
     } else {
+      // 新建模式：内容全空则跳过
       if (!patch.title && !patch.content && patch.images.length === 0) {
         setSaveStatus('', '已保存');
         return;
@@ -458,7 +496,7 @@ async function doSave() {
         createdAt: Date.now(),
         updatedAt: Date.now()
       });
-      currentEdit = note.id;
+      currentEdit = note.id;  // 新建成功后切换到编辑态，后续再输入就是更新这条
     }
     setSaveStatus('', '已保存');
   } catch (err) {
@@ -564,13 +602,12 @@ async function handlePastedHTML(html) {
   }
 }
 
-// ======== 拖拽（挂在 .editor 整体上，避免子元素间事件丢失） ========
+// ======== 拖拽（挂在 .editor 整体上） ========
 function setupDragDrop() {
   const editor = els.editor;
 
   ['dragenter', 'dragover'].forEach(ev => {
     editor.addEventListener(ev, (e) => {
-      // 只处理带文件的拖拽（避免把普通文本拖进 editor 也触发遮罩）
       if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
       e.preventDefault();
       e.stopPropagation();
@@ -585,7 +622,6 @@ function setupDragDrop() {
   ['dragleave', 'drop', 'dragend'].forEach(ev => {
     editor.addEventListener(ev, (e) => {
       if (ev === 'dragleave') {
-        // relatedTarget 仍在 editor 内部时不清理（避免子元素间穿越频繁闪烁）
         if (e.relatedTarget && editor.contains(e.relatedTarget)) return;
       }
       if (ev === 'drop') {
@@ -596,12 +632,10 @@ function setupDragDrop() {
     });
   });
 
-  // 全局 drop 兜底：drop 在非 editor 区域 → 清理
   document.addEventListener('drop', (e) => {
     if (!editor.contains(e.target)) clearDragState();
   });
 
-  // popup 失焦时强制清理（拖出窗口时 dragleave 可能不触发）
   window.addEventListener('blur', () => clearDragState());
 }
 
@@ -635,11 +669,13 @@ function closeLightbox() { els.lightbox.hidden = true; els.lbImg.src = ''; }
 
 // ======== 事件绑定 ========
 function bindEvents() {
+  // 空状态里的新建按钮（notes=0 时的 fallback）
   els.btnNewEmpty.addEventListener('click', () => openEditor(null));
   els.btnManager.addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('manager.html') });
   });
 
+  // 搜索
   els.search.addEventListener('input', () => {
     const kw = els.search.value;
     els.clearSearch.hidden = !kw;
@@ -647,6 +683,7 @@ function bindEvents() {
   });
   els.clearSearch.addEventListener('click', () => { els.search.value = ''; els.clearSearch.hidden = true; loadList(''); });
 
+  // 颜色
   els.colorRow.addEventListener('click', (e) => {
     const dot = e.target.closest('.color-dot');
     if (!dot) return;
@@ -654,14 +691,17 @@ function bindEvents() {
     scheduleSave();
   });
 
+  // 输入
   els.title.addEventListener('input', scheduleSave);
   els.content.addEventListener('input', () => { autoResize(); scheduleSave(); });
 
+  // 粘贴
   els.content.addEventListener('paste', handlePaste);
   els.title.addEventListener('paste', handlePaste);
 
   setupDragDrop();
 
+  // 添加图片
   els.btnAddImg.addEventListener('click', () => els.fileInput.click());
   els.fileInput.addEventListener('change', async () => {
     if (!els.fileInput.files.length) return;
@@ -669,6 +709,7 @@ function bindEvents() {
     els.fileInput.value = '';
   });
 
+  // 取消 / 保存
   els.btnCancel.addEventListener('click', closeEditor);
   els.btnSave.addEventListener('click', async () => {
     await doSave();
@@ -676,6 +717,7 @@ function bindEvents() {
     closeEditor();
   });
 
+  // Lightbox
   els.lbClose.addEventListener('click', closeLightbox);
   els.lightbox.addEventListener('click', (e) => { if (e.target === els.lightbox) closeLightbox(); });
   els.lbPrev.addEventListener('click', () => { if (lbIndex > 0) { lbIndex--; renderLightbox(); } });
@@ -688,16 +730,17 @@ function bindEvents() {
     }
   });
 
+  // 键盘全局：Ctrl/⌘+S 保存 + Esc 关闭
   document.addEventListener('keydown', async (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-      if (!els.editor.hidden) {
+      if (isEditing) {
         e.preventDefault();
         await doSave();
         showToast('已保存');
         closeEditor();
       }
     }
-    if (e.key === 'Escape' && !els.editor.hidden && els.lightbox.hidden) {
+    if (e.key === 'Escape' && isEditing && els.lightbox.hidden) {
       closeEditor();
     }
   });
@@ -722,9 +765,7 @@ function closeEditorSilent() {
 async function init() {
   bindEvents();
   await loadList();
-  if (notes.length === 0) {
-    openEditor(null);
-  }
+  // 不再自动打开编辑器 — 常驻 trigger 卡片作为明确入口
 }
 
 init().catch(err => {

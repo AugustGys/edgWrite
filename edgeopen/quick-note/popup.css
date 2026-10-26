@@ -68,7 +68,7 @@ html, body {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
-  flex-shrink: 0;           /* 不被 flex 压缩 */
+  flex-shrink: 0;
   z-index: 5;
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
@@ -89,7 +89,7 @@ html, body {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 14px;
   background: var(--surface);
-  flex-shrink: 0;           /* 不被 flex 压缩 */
+  flex-shrink: 0;
 }
 .search-bar input {
   width: 100%;
@@ -112,12 +112,50 @@ html, body {
 .notes-list {
   flex: 1;
   overflow-y: auto;
-  min-height: 0;            /* flex 子项必须设才能真正滚动 */
+  min-height: 0;
   padding: 10px 12px;
   scrollbar-width: thin;
+  position: relative;      /* editor overlay 绝对定位的参考 */
 }
 .notes-list::-webkit-scrollbar { width: 6px; }
 .notes-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ====== 常驻「+ 新建便签」触发卡片 ====== */
+.new-note-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color .18s, background .18s, color .18s, transform .12s, box-shadow .18s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.new-note-trigger:hover {
+  border-color: var(--primary);
+  border-style: solid;
+  background: var(--primary-light);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.new-note-trigger:active { transform: translateY(0); }
+.new-note-trigger .plus-icon {
+  width: 22px; height: 22px;
+  transition: transform .2s;
+}
+.new-note-trigger:hover .plus-icon { transform: scale(1.15); }
+.new-note-trigger .trigger-label {
+  font-size: 12.5px;
+  font-weight: 500;
+}
 
 .note-card {
   background: var(--surface);
@@ -133,7 +171,6 @@ html, body {
 .note-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .note-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
-/* 颜色条 */
 .note-card[data-color="yellow"]  { border-left-color: #E0B82B; }
 .note-card[data-color="green"]   { border-left-color: #4CAF50; }
 .note-card[data-color="blue"]    { border-left-color: #2196F3; }
@@ -157,7 +194,7 @@ html, body {
 .card-body {
   color: var(--text-muted); font-size: 12.5px;
   line-height: 1.55; white-space: pre-wrap; word-break: break-word;
-  max-height: 9.3em; /* 约 6 行 */
+  max-height: 9.3em;
   overflow: hidden;
 }
 .card-body.collapsed::after {
@@ -170,7 +207,6 @@ html, body {
   margin-top: 2px; background: none; border: none; padding: 0; cursor: pointer;
 }
 
-/* 缩略图 */
 .thumb-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .thumb {
   width: 56px; height: 56px; border-radius: 6px; object-fit: cover;
@@ -237,14 +273,21 @@ html, body {
 }
 .btn-secondary:hover { background: var(--border); }
 
-/* ====== 编辑区（flex 子项，内部滚动） ====== */
+/* ====== 编辑区（覆盖层，绝对定位覆盖 notes-list） ====== */
 .editor {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
   padding: 12px 14px;
-  background: var(--surface);
-  position: relative;
+  background: var(--bg);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: editorIn .2s ease-out;
+}
+@keyframes editorIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .editor-header {
   display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
@@ -261,7 +304,7 @@ html, body {
   width: 100%; min-height: 90px; max-height: 180px;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 8px 10px; resize: none; font-size: 13px;
-  background: var(--bg); color: var(--text); font-family: inherit;
+  background: var(--bg-alt); color: var(--text); font-family: inherit;
   line-height: 1.55;
   transition: border-color .15s, box-shadow .15s;
 }
@@ -271,13 +314,11 @@ html, body {
   outline: none;
 }
 
-/* 拖拽态：高亮 textarea 边框 */
 .editor.dragover .note-content {
   border: 2px dashed var(--primary);
   background: var(--primary-light);
 }
 
-/* 颜色区不被挤压 */
 .color-row {
   display: flex; gap: 8px; margin-top: 8px;
   flex-shrink: 0;
@@ -291,7 +332,6 @@ html, body {
 .color-dot:hover { transform: scale(1.15); }
 .color-dot.active { border-color: var(--text); transform: scale(1.15); }
 
-/* 图片预览区 */
 .image-preview-row {
   display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;
   flex-shrink: 0;
@@ -303,7 +343,6 @@ html, body {
 }
 @keyframes fadein { from { opacity: 0; transform: scale(.9) } to { opacity: 1; transform: scale(1) } }
 
-/* 骨架占位 */
 .skeleton {
   width: 48px; height: 48px; border-radius: 4px;
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
@@ -312,8 +351,6 @@ html, body {
 }
 @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
 
-/* 拖拽遮罩：默认必须隐藏（依赖上面的 [hidden] { display: none !important }）
-   只有 .editor.dragover + JS 设 hidden=false 才显示 */
 .drop-overlay {
   position: absolute; inset: 0;
   background: rgba(79, 124, 255, .08);
@@ -326,11 +363,12 @@ html, body {
   gap: 8px; color: var(--primary); font-size: 13px; font-weight: 500;
 }
 
-/* 底部工具条：一行对齐，不换行 */
 .editor-footer {
   display: flex; align-items: center; gap: 8px; margin-top: 10px;
   flex-wrap: nowrap;
   flex-shrink: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-soft);
 }
 .save-status {
   margin-left: 4px; font-size: 11.5px; color: var(--text-muted);

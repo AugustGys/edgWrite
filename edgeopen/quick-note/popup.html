@@ -34,9 +34,9 @@
     </button>
   </div>
 
-  <!-- 列表区 -->
+  <!-- 列表区（trigger 卡片作为第一个子项动态插入） -->
   <main id="notes-list" class="notes-list">
-    <!-- 动态生成 -->
+    <!-- 动态生成：[trigger 卡片, note-card, note-card, ...] -->
   </main>
 
   <!-- 空状态 -->
@@ -57,7 +57,7 @@
     </button>
   </div>
 
-  <!-- 新建便签编辑区 -->
+  <!-- 新建便签编辑区（覆盖层，absolute 覆盖 notes-list） -->
   <section id="editor" class="editor" hidden>
     <div class="editor-header">
       <input type="text" id="note-title" class="note-title" placeholder="标题（可选）" maxlength="80">
